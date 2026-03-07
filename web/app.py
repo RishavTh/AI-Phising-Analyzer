@@ -16,6 +16,7 @@ from enrichment import enrich_iocs
 from risk_scorer import calculate_risk_score
 from reporter import generate_report, save_report
 from slack_alert import send_slack_alert
+from siem_logger import write_siem_log, read_siem_logs, get_siem_stats
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
@@ -95,6 +96,7 @@ def analyze():
         report = generate_report(email_data, iocs, enrichment, risk_result)
         saved_path = save_report(report, risk_result)
         send_slack_alert(email_data, iocs, risk_result)
+        write_siem_log(email_data, iocs, enrichment, risk_result)
 
         duration = (datetime.now() - start_time).total_seconds()
         logger.info(
@@ -165,6 +167,17 @@ def history():
                             "timestamp":  parts[2] + '_' + parts[3] if len(parts) > 3 else parts[2]
                         })
         return jsonify({"reports": reports[:20]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/siem-logs')
+def siem_logs():
+    """Returns SIEM logs from disk — persistent across sessions"""
+    try:
+        logs = read_siem_logs(limit=100)
+        stats = get_siem_stats()
+        return jsonify({"logs": logs, "stats": stats})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
