@@ -17,6 +17,7 @@ from risk_scorer import calculate_risk_score
 from reporter import generate_report, save_report
 from slack_alert import send_slack_alert
 from siem_logger import write_siem_log, read_siem_logs, get_siem_stats
+from attachment_scanner import scan_attachments
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
@@ -90,6 +91,9 @@ def analyze():
         if not email_data:
             return jsonify({"error": "Could not parse email"}), 400
 
+        # Scan attachments
+        attachment_results = scan_attachments(tmp_path)
+
         iocs = extract_iocs(email_data)
         enrichment = enrich_iocs(iocs)
         risk_result = calculate_risk_score(iocs, enrichment)
@@ -135,6 +139,7 @@ def analyze():
                 "action":    risk_result['action'],
                 "breakdown": risk_result['score_breakdown']
             },
+            "attachments": attachment_results,
             "report":     safe_str(report),
             "saved_path": safe_str(saved_path)
         })

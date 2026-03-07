@@ -1,0 +1,30 @@
+Content-Type: multipart/mixed; boundary="===============2400986138663294653=="
+MIME-Version: 1.0
+From: "Payroll Team" <payroll@evil-corp.ru>
+Reply-To: harvest@evil-corp.ru
+To: victim@company.com
+Subject: Q1 2026 Salary Review - Action Required
+Date: Fri, 07 Mar 2026 09:00:00 +0000
+
+--===============2400986138663294653==
+Content-Type: text/plain; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+
+Dear Employee,
+
+Please find attached your Q1 2026 salary review document.
+You must open and sign the attached PDF within 24 hours.
+
+Login to approve: http://payroll-evil-corp.ru/approve
+
+HR Department
+--===============2400986138663294653==
+Content-Type: application/pdf
+MIME-Version: 1.0
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Q1_Salary_Review_2026.pdf"
+
+JVBERi0xLjQgZmFrZSBwZGYgY29udGVudCBmb3IgdGVzdGluZyBhdHRhY2htZW50IHNjYW5uaW5n
+
+--===============2400986138663294653==--

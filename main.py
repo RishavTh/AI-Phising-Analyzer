@@ -15,6 +15,7 @@ from enrichment import enrich_iocs
 from risk_scorer import calculate_risk_score
 from reporter import generate_report, save_report
 from slack_alert import send_slack_alert
+from attachment_scanner import scan_attachments
 
 def run_pipeline(email_path):
     print("\n" + "=" * 60)
@@ -34,6 +35,13 @@ def run_pipeline(email_path):
     print("✅ Email parsed successfully")
 
     print("\n[STAGE 2/6] Extracting IOCs with AI...")
+    # Scan attachments if any
+    attachment_results = scan_attachments(email_path)
+    if attachment_results:
+        for r in attachment_results:
+            status = "🔴 MALICIOUS" if r.get('malicious',0) > 0 else "🟢 CLEAN"
+            print(f"  Attachment: {r['filename']} — {status} ({r.get('malicious',0)} engines)")
+
     iocs = extract_iocs(email_data)
     print(f"URLs found:    {len(iocs.get('urls', []))}")
     print(f"Domains found: {len(iocs.get('domains', []))}")
