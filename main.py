@@ -54,6 +54,7 @@ def run_pipeline(email_path):
     print("✅ Enrichment complete")
 
     print("\n[STAGE 4/6] Calculating risk score...")
+    enrichment["email_body"] = email_data.get("body", "")
     risk_result = calculate_risk_score(iocs, enrichment)
     print(f"{risk_result['emoji']} Risk Level: {risk_result['risk_level']}")
     print(f"Risk Score:  {risk_result['risk_score']} / 100")

@@ -96,6 +96,7 @@ def analyze():
 
         iocs = extract_iocs(email_data)
         enrichment = enrich_iocs(iocs)
+        enrichment["email_body"] = email_data.get("body", "")
         risk_result = calculate_risk_score(iocs, enrichment)
         report = generate_report(email_data, iocs, enrichment, risk_result)
         saved_path = save_report(report, risk_result)

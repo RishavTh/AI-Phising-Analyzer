@@ -75,7 +75,7 @@ RULE 2 — HEADERS MISSING = {headers_missing}
 If True:
 - ai_confidence_score MUST be 30 or below
 - spoofing_detected MUST be false
-- credential_harvesting MUST be false unless body literally says "enter password"
+- credential_harvesting: set true if email asks user to click a link to verify/confirm/review account details, reset password, or validate identity. This IS credential harvesting even without the word "password".
 
 RULE 3 — ai_confidence_score above 60 requires TWO or more of:
 - Lookalike domain in the actual email text
@@ -146,6 +146,11 @@ Return ONLY this JSON:
         u for u in iocs.get('urls', [])
         if u.startswith('http') and '.' in u
     ]
+
+    # Filter IPs — remove text strings that are not real IPs
+    import re
+    IP_PATTERN = re.compile(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+    iocs['ips'] = [ip for ip in iocs.get('ips', []) if IP_PATTERN.match(str(ip).strip())]
 
     # Regex IP backup
     full_text = f"{sender} {reply_to} {body}"
