@@ -1,91 +1,178 @@
-# 🛡️ AI-Powered Phishing Email Analyzer
+# 🛡️ PhishGuard — AI-Powered Phishing Email Analyzer
 
-> Automated SOC Tier-1 email triage — from suspicious email to incident report in under 5 seconds.
-
-![Python](https://img.shields.io/badge/Python-3.11-blue) ![Flask](https://img.shields.io/badge/Flask-3.x-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
-
----
-
-## What It Does
-
-PhishGuard is a full SOC automation tool that:
-
-- Parses raw emails (`.eml` format or pasted text, including HTML emails)
-- Uses **Groq AI (LLaMA 3.1)** to extract IOCs and detect phishing tactics
-- Enriches indicators via **VirusTotal** (70+ AV engines) and **AbuseIPDB**
-- Calculates a **weighted risk score (0–100)**
-- Maps findings to **MITRE ATT&CK techniques**
-- Generates a structured **SOC incident report**
-- Sends **Slack alerts** for HIGH/MEDIUM severity findings
-- Provides a **cinematic SIEM-style web dashboard**
-
-Manual triage time: ~8 minutes. PhishGuard: ~4 seconds.
+> **SOC Automation Tool** | Built with Python, Groq LLaMA 3.1, VirusTotal, AbuseIPDB, Flask  
+> Reduces manual phishing triage from ~8 minutes to under 5 seconds per email.
 
 ---
 
-## Demo
+## 📸 Dashboard Preview
+
+**Wazuh-style SOC Dashboard** — Dark blue SIEM interface with sidebar navigation, live stats, pipeline visualization, and full incident reports.
+
+---
+
+## 🚀 What It Does
+
+PhishGuard is a full 6-stage SOC automation pipeline that analyzes phishing emails end-to-end:
+
+1. **Email Parsing** — Extracts headers, body, and attachments from raw `.eml` or pasted email content
+2. **AI IOC Extraction** — Uses Groq LLaMA 3.1 to extract URLs, domains, IPs, and phishing tactics
+3. **Threat Intel Enrichment** — Checks every URL against VirusTotal (70+ engines) and every IP against AbuseIPDB
+4. **Attachment Scanning** — Extracts PDF/Word/ZIP attachments and submits them to VirusTotal Files API
+5. **Risk Scoring** — Weighted signal model produces a 0–100 risk score with full breakdown
+6. **Incident Report + Slack Alert** — Generates a professional SOC report and sends alerts to `#soc-alerts`
+
+---
+
+## ✨ Features
+
+### 🧠 AI Analysis Engine
+- Groq API (LLaMA 3.1 8B) with `temperature=0.0` for deterministic output
+- Python-level enforcement layer prevents AI hallucination of IOCs
+- Sender domain whitelist: Google, Microsoft, Apple, PayPal, Amazon, etc.
+- AI confidence score capped at 30 if email headers are missing
+
+### 🔍 IOC Extraction
+- URLs, domains, IP addresses extracted from headers + body
+- Regex IP extraction as backup when AI misses IPs in received headers
+- MITRE ATT&CK technique mapping for every detected tactic
+
+### 🌐 Threat Intelligence
+- **VirusTotal** — URL reputation across 70+ antivirus engines
+- **AbuseIPDB** — IP abuse score, ISP, country, Tor node detection
+- Retry logic (3 attempts, 2s delay) for API reliability
+- Trust reduction logic: clean threat intel overrides high AI confidence
+
+### 📎 Attachment Scanning *(New)*
+- Extracts PDF, Word, Excel, ZIP, EXE attachments from `.eml` files
+- SHA256 hash lookup — checks VirusTotal cache first (no re-upload needed)
+- Falls back to direct file upload + polling for new/unknown files
+- Skips files over 5MB and non-suspicious file types automatically
+
+### 📊 SIEM Log Export *(New)*
+- Every analysis auto-saved to `output/siem_logs.ndjson` on disk
+- Elastic Common Schema (ECS) compatible format
+- One JSON object per line — directly ingestible by Splunk, Elastic, Wazuh
+- Persistent across server restarts and browser sessions
+- `/siem-logs` API endpoint returns full history with stats
+
+### 🖥️ Wazuh-Style SOC Dashboard *(New)*
+- **Email Analyzer** — Paste raw `.eml` or Gmail "Show Original" content
+- **Alert Queue** — Session history table with CSV export
+- **MITRE ATT&CK View** — All detected techniques across session
+- **IOC Registry** — Accumulated URLs, domains, IPs across all analyses
+- **SIEM Logs View** — Live JSON viewer with download as `.ndjson`
+- All copy buttons work reliably with clipboard fallback
+
+### 🎯 MITRE ATT&CK Mapping
+| Tactic | Technique ID | Technique Name |
+|--------|-------------|----------------|
+| Urgency | T1566.001 | Spearphishing Attachment |
+| Credential Harvesting | T1598.003 | Spearphishing Link |
+| Spoofing | T1566.002 | Spearphishing Link |
+| Social Engineering | T1566 | Phishing |
+| Lookalike Domain | T1583.001 | Acquire Domain |
+
+---
+
+## 📊 Risk Scoring Model
+
+| Signal | Points |
+|--------|--------|
+| AI confidence > 70% | +40 pts |
+| VirusTotal malicious > 10 engines | +25 pts |
+| VirusTotal malicious 3–10 engines | +15 pts |
+| VirusTotal malicious 1–3 engines | +5 pts |
+| AbuseIPDB score > 60% | +20 pts |
+| AbuseIPDB score 30–60% | +10 pts |
+| Tor exit node detected | +10 pts |
+| Sender spoofing detected | +10 pts |
+| Credential harvesting detected | +5 pts |
+| **Trust reduction** (all clean intel) | Score capped at 30 |
+
+**Risk Levels:** 0–29 LOW · 30–70 MEDIUM · 71–100 HIGH
+
+---
+
+## 🧪 Test Results
 
 | Email | Score | Level | Result |
 |-------|-------|-------|--------|
-| Microsoft spoofed (.ru domain, Tor IP) | 85/100 | 🔴 HIGH | Escalate to L2 |
-| PayPal lookalike domain | 50/100 | 🟡 MEDIUM | Analyst review |
-| Legitimate Google notification | 0/100 | 🟢 LOW | Log & monitor |
-| Real Microsoft security alert | 20/100 | 🟢 LOW | Log & monitor |
+| Microsoft phishing (.ru domain, Tor IP) | 85/100 | 🔴 HIGH | ✅ Correct |
+| PayPal suspicious (lookalike domain) | 50/100 | 🟡 MEDIUM | ✅ Correct |
+| Google legitimate (google.com) | 0/100 | 🟢 LOW | ✅ Correct |
+| Body-only, no headers | 0/100 | 🟢 LOW | ✅ Correct |
+| Real Microsoft security alert | 20/100 | 🟢 LOW | ✅ Correct |
+| Real Chase bank alert | 20/100 | 🟢 LOW | ✅ Correct |
+| CashApp scam | 50/100 | 🟡 MEDIUM | ✅ Correct |
+| Salary phishing with PDF attachment | 30/100 | 🟡 MEDIUM | ✅ Correct |
+
+**Zero false positives on legitimate emails.**
 
 ---
 
-## Architecture
+## 🏗️ Architecture
+
 ```
-Email Input (.eml or paste)
-        ↓
-[Stage 1] Email Parser      — headers, body, HTML extraction
-        ↓
-[Stage 2] AI IOC Extractor  — Groq/LLaMA 3.1, MITRE ATT&CK mapping
-        ↓
-[Stage 3] Threat Enrichment — VirusTotal + AbuseIPDB
-        ↓
-[Stage 4] Risk Scorer       — weighted model, false-positive reduction
-        ↓
-[Stage 5] Report Generator  — structured SOC incident report
-        ↓
-[Stage 6] Slack Alert       — HIGH/MEDIUM only, silent for LOW
+sample_emails/          # Test .eml files
+src/
+├── email_parser.py     # Stage 1: Parse .eml files
+├── ioc_extractor.py    # Stage 2: AI IOC extraction (Groq)
+├── ip_extractor.py     # Stage 2b: Regex IP backup
+├── enrichment.py       # Stage 3: VirusTotal + AbuseIPDB
+├── attachment_scanner.py # Stage 3b: VirusTotal Files API
+├── risk_scorer.py      # Stage 4: Weighted risk scoring
+├── reporter.py         # Stage 5: AI incident report generation
+├── slack_alert.py      # Stage 6: Slack webhook alerts
+└── siem_logger.py      # Auto-save NDJSON logs to disk
+web/
+├── app.py              # Flask API (rate-limited, input-validated)
+└── templates/
+    └── index.html      # Wazuh-style SOC dashboard
+output/
+├── report_*.txt        # Saved incident reports
+└── siem_logs.ndjson    # Persistent SIEM log file
+main.py                 # CLI pipeline controller
 ```
 
 ---
 
-## Tech Stack
+## ⚙️ Setup
 
-| Tool | Purpose |
-|------|---------|
-| Python 3.11 | Core language |
-| Groq API (LLaMA 3.1) | AI IOC extraction & report generation |
-| VirusTotal API | URL/domain reputation (70+ engines) |
-| AbuseIPDB API | IP abuse scoring & Tor detection |
-| Flask + flask-limiter | Web dashboard + rate limiting |
-| Slack Webhooks | Real-time SOC alerts |
+### Requirements
+- Python 3.11+
+- Groq API key (free at [console.groq.com](https://console.groq.com))
+- VirusTotal API key (free at [virustotal.com](https://virustotal.com))
+- AbuseIPDB API key (free at [abuseipdb.com](https://abuseipdb.com))
+- Slack webhook URL (optional)
 
----
+### Installation
 
-## Setup
-
-**1. Clone the repo**
 ```bash
-git clone git@github.com:RishavTh/AI-Phising-Analyzer.git
+git clone https://github.com/RishavTh/AI-Phising-Analyzer.git
 cd AI-Phising-Analyzer
-```
-
-**2. Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-**3. Configure API keys**
-```bash
+pip3 install -r requirements.txt
 cp .env.example .env
-# Edit .env and add your keys
+# Edit .env with your API keys
 ```
 
-**4. Start the dashboard**
+### Environment Variables
+
+```env
+GROQ_API_KEY=your_key_here
+VIRUSTOTAL_API_KEY=your_key_here
+ABUSEIPDB_API_KEY=your_key_here
+SLACK_WEBHOOK_URL=your_webhook_here   # optional
+```
+
+### Run CLI
+
+```bash
+python3 main.py sample_emails/test_phishing.eml
+```
+
+### Run Web Dashboard
+
 ```bash
 python3 web/app.py
 # Open http://localhost:5000
@@ -93,53 +180,55 @@ python3 web/app.py
 
 ---
 
-## API Keys Required (all free tier)
+## 🔒 Security Hardening
 
-- [Groq API](https://console.groq.com) — free, no credit card
-- [VirusTotal](https://virustotal.com) — free, 4 req/min
-- [AbuseIPDB](https://abuseipdb.com) — free, 1000 req/day
-- [Slack Webhook](https://api.slack.com/messaging/webhooks) — free
-
----
-
-## Security Features
-
-- Rate limiting (10 req/min per IP via flask-limiter)
-- Input validation & max content length enforcement
-- Secure temp file handling with guaranteed cleanup
-- API keys via `.env` — never committed to git
-- False positive reduction via Python-level enforcement layer
+- Rate limiting: 10 requests/minute, 100/hour per IP
+- Input validation: 20–100,000 character limits
+- Secure temp file handling with `finally` cleanup
+- `.env` file at `chmod 600` — never committed to git
+- Debug mode disabled in production
+- All JSON response values sanitized via `safe_str()`
 
 ---
 
-## MITRE ATT&CK Coverage
+## 💡 Interview Talking Points
 
-| Technique | ID | Tactic |
-|-----------|-----|--------|
-| Spearphishing Link | T1566.002 | Initial Access |
-| Spearphishing Attachment | T1566.001 | Initial Access |
-| Acquire Domain | T1583.001 | Resource Development |
-| Spearphishing Link (Recon) | T1598.003 | Reconnaissance |
+- **"Reduces triage from 8 minutes to under 5 seconds per email"**
+- **"Discovered LLM was hallucinating IOCs — fixed with Python enforcement layer and temperature=0"**
+- **"Weighted signal model similar to Splunk SOAR / Palo Alto XSOAR"**
+- **"Automatically maps tactics to MITRE ATT&CK — same framework as CrowdStrike and Microsoft Defender"**
+- **"Trust reduction logic prevents false positives on legitimate security emails like Chase and Microsoft"**
+- **"Attachment scanning uses SHA256 hash lookup — same technique as enterprise EDR tools"**
+- **"SIEM logs in ECS format — directly ingestible by Splunk, Elastic, or Wazuh without transformation"**
+- **"Zero false positives across 8 real-world test scenarios"**
 
 ---
 
-## Project Structure
-```
-├── src/
-│   ├── email_parser.py      # HTML + plain text email parsing
-│   ├── ioc_extractor.py     # AI extraction + MITRE mapping
-│   ├── ip_extractor.py      # Regex IPv4 backup extraction
-│   ├── enrichment.py        # VirusTotal + AbuseIPDB with retry logic
-│   ├── risk_scorer.py       # Weighted scoring engine
-│   ├── reporter.py          # AI incident report generation
-│   └── slack_alert.py       # Slack Block Kit alerts
-├── web/
-│   ├── app.py               # Flask dashboard (hardened)
-│   └── templates/index.html # Cinematic SIEM UI
-├── sample_emails/           # Test .eml files
-├── main.py                  # CLI entry point
-└── requirements.txt
-```
+## 🛠️ Tech Stack
 
+| Component | Technology |
+|-----------|-----------|
+| AI Engine | Groq API — LLaMA 3.1 8B Instant |
+| URL Threat Intel | VirusTotal API v3 |
+| IP Threat Intel | AbuseIPDB API v2 |
+| Attachment Scanning | VirusTotal Files API |
+| Web Framework | Flask + Flask-Limiter |
+| Frontend | Vanilla JS + IBM Plex fonts |
+| Alerting | Slack Webhooks |
+| Log Format | Elastic Common Schema (ECS) NDJSON |
+| Runtime | Python 3.11 on Debian Linux |
 
-This project demonstrates: AI/LLM integration, REST API consumption, IOC enrichment, SOAR principles, risk-based decision logic, and automated incident response.
+---
+
+## 📁 Sample Emails Included
+
+| File | Description |
+|------|-------------|
+| `test_phishing.eml` | Microsoft impersonation with Tor IP |
+| `test_medium.eml` | PayPal lookalike domain |
+| `test_clean.eml` | Legitimate Google email |
+| `test_attachment.eml` | Salary phishing with PDF attachment |
+
+---
+
+*Built as a SOC portfolio project demonstrating real-world email triage automation.*
