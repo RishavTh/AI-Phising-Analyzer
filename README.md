@@ -4,6 +4,10 @@ Automated phishing email analysis pipeline with a SOC-style web dashboard.
 
 ![Dashboard](screenshot/dashbaord_preview.png)
 
+## Architecture
+
+![Architecture](screenshot/architecture.png)
+
 ## Overview
 
 PhishGuard is a 6-stage pipeline that takes a raw email as input and produces a structured threat assessment — IOCs, risk score, MITRE ATT&CK mapping, enriched threat intel, attachment scan results, and a full incident report.
