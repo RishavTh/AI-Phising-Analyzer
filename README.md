@@ -141,10 +141,5 @@ python3 web/app.py
 └── requirements.txt
 ```
 
----
-
-## Built By
-
-Rishav Kumar Thapa — learning cybersecurity for Junior SOC Analyst roles.
 
 This project demonstrates: AI/LLM integration, REST API consumption, IOC enrichment, SOAR principles, risk-based decision logic, and automated incident response.
