@@ -1,0 +1,21 @@
+From: "Microsoft Security" <security@micros0ft-alert.ru>
+Reply-To: harvest@evil-domain.com
+Subject: [URGENT] Your account will be suspended in 24 hours
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Received: from 185.220.101.45 (micros0ft-alert.ru)
+X-Originating-IP: 185.220.101.45
+
+Dear User,
+
+Your Microsoft account has been flagged for suspicious activity.
+You must verify your credentials immediately or your account will be suspended.
+
+Click here to verify: http://micros0ft-verify.ru/login?user=victim
+
+Your account IP has been logged: 185.220.101.45
+If you do not verify within 24 hours, your account will be permanently deleted.
+
+Microsoft Security Team

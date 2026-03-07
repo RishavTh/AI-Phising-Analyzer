@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishGuard — AI Threat Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #020408;
+            --surface: #060c14;
+            --surface2: #080f1a;
+            --cyan: #00d4ff;
+            --cyan-dim: rgba(0,212,255,0.15);
+            --cyan-glow: rgba(0,212,255,0.4);
+            --red: #ff2d55;
+            --red-dim: rgba(255,45,85,0.12);
+            --yellow: #ffd60a;
+            --yellow-dim: rgba(255,214,10,0.12);
+            --green: #30d158;
+            --green-dim: rgba(48,209,88,0.12);
+            --text: #b0c4d8;
+            --text-bright: #e8f4ff;
+            --muted: #3a5068;
+            --border: rgba(0,212,255,0.1);
+            --border-bright: rgba(0,212,255,0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            cursor: crosshair;
+        }
+
+        /* ANIMATED BACKGROUND */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes gridMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 50px 50px; }
+        }
+
+        .bg-scan {
+            position: fixed;
+            top: -100%;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: linear-gradient(transparent, rgba(0,212,255,0.03), transparent);
+            animation: scanDown 8s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanDown {
+            0% { top: -200px; }
+            100% { top: 100vh; }
+        }
+
+        /* CORNER DECORATIONS */
+        .corner {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .corner-tl { top: 10px; left: 10px; border-top: 1px solid var(--cyan); border-left: 1px solid var(--cyan); }
+        .corner-tr { top: 10px; right: 10px; border-top: 1px solid var(--cyan); border-right: 1px solid var(--cyan); }
+        .corner-bl { bottom: 10px; left: 10px; border-bottom: 1px solid var(--cyan); border-left: 1px solid var(--cyan); }
+        .corner-br { bottom: 10px; right: 10px; border-bottom: 1px solid var(--cyan); border-right: 1px solid var(--cyan); }
+
+        /* HEADER */
+        .header {
+            position: relative;
+            z-index: 10;
+            padding: 0 40px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: rgba(2,4,8,0.9);
+            backdrop-filter: blur(20px);
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+        }
+
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            position: relative;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            inset: 3px;
+            border: 1px solid rgba(0,212,255,0.3);
+        }
+
+        .logo-text {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--cyan);
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        .logo-sub {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .header-center {
+            display: flex;
+            gap: 30px;
+        }
+
+        .header-stat {
+            text-align: center;
+        }
+
+        .header-stat-val {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            color: var(--cyan);
+        }
+
+        .header-stat-label {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 2px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .online-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--green);
+            letter-spacing: 2px;
+            padding: 4px 12px;
+            border: 1px solid rgba(48,209,88,0.3);
+            background: rgba(48,209,88,0.05);
+        }
+
+        .online-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--green);
+            animation: blink 2s ease infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .hist-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            padding: 6px 14px;
+            border: 1px solid var(--border-bright);
+            background: transparent;
+            color: var(--cyan);
+            cursor: crosshair;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .hist-btn:hover {
+            background: var(--cyan-dim);
+            box-shadow: 0 0 15px var(--cyan-glow);
+        }
+
+        /* MAIN */
+        .main {
+            position: relative;
+            z-index: 5;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        /* SYSTEM TITLE */
+        .sys-title {
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .sys-title-pre {
+            font-size: 10px;
+            color: var(--cyan);
+            letter-spacing: 4px;
+            margin-bottom: 6px;
+            opacity: 0.7;
+        }
+
+        .sys-title h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--text-bright);
+            letter-spacing: 2px;
+            line-height: 1;
+        }
+
+        .sys-title h1 span {
+            color: var(--cyan);
+            text-shadow: 0 0 30px var(--cyan-glow);
+        }
+
+        .sys-title-flow {
+            margin-top: 10px;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .flow-step {
+            color: var(--cyan);
+            opacity: 0.6;
+        }
+
+        .flow-arrow { color: var(--muted); }
+
+        /* INPUT SECTION */
+        .input-section {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+        }
+
+        .panel-head {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-label {
+            font-size: 10px;
+            color: var(--cyan);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-label::before {
+            content: '▶';
+            font-size: 8px;
+        }
+
+        .sample-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sample-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 1px;
+            padding: 4px 10px;
+            border: 1px solid;
+            background: transparent;
+            cursor: crosshair;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .sample-btn.s-red { border-color: rgba(255,45,85,0.4); color: var(--red); }
+        .sample-btn.s-red:hover { background: var(--red-dim); box-shadow: 0 0 10px rgba(255,45,85,0.3); }
+        .sample-btn.s-yellow { border-color: rgba(255,214,10,0.4); color: var(--yellow); }
+        .sample-btn.s-yellow:hover { background: var(--yellow-dim); }
+        .sample-btn.s-green { border-color: rgba(48,209,88,0.4); color: var(--green); }
+        .sample-btn.s-green:hover { background: var(--green-dim); }
+
+        textarea {
+            width: 100%;
+            height: 160px;
+            background: rgba(0,0,0,0.4);
+            border: none;
+            color: #7ab8d4;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            padding: 18px 20px;
+            resize: none;
+            outline: none;
+            line-height: 1.8;
+        }
+
+        textarea::placeholder { color: var(--muted); }
+
+        .input-foot {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .input-hint { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+        .analyze-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            padding: 10px 28px;
+            border: 1px solid var(--cyan);
+            background: var(--cyan-dim);
+            color: var(--cyan);
+            cursor: crosshair;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .analyze-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent);
+            transition: left 0.4s;
+        }
+
+        .analyze-btn:hover::before { left: 100%; }
+        .analyze-btn:hover { box-shadow: 0 0 25px var(--cyan-glow), inset 0 0 25px rgba(0,212,255,0.1); }
+        .analyze-btn:disabled { border-color: var(--muted); color: var(--muted); background: transparent; cursor: not-allowed; box-shadow: none; }
+        .analyze-btn:disabled::before { display: none; }
+
+        /* LOADING */
+        .loading-section {
+            display: none;
+            margin-bottom: 25px;
+        }
+
+        .pipeline-track {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0;
+        }
+
+        .pipe-step {
+            padding: 16px 12px;
+            border: 1px solid var(--border);
+            border-right: none;
+            position: relative;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .pipe-step:last-child { border-right: 1px solid var(--border); }
+
+        .pipe-step.active {
+            border-color: var(--cyan);
+            background: var(--cyan-dim);
+        }
+
+        .pipe-step.done {
+            border-color: rgba(48,209,88,0.4);
+            background: rgba(48,209,88,0.05);
+        }
+
+        .pipe-num {
+            font-family: 'Orbitron', monospace;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--muted);
+            transition: all 0.3s;
+            line-height: 1;
+        }
+
+        .pipe-step.active .pipe-num { color: var(--cyan); text-shadow: 0 0 20px var(--cyan-glow); }
+        .pipe-step.done .pipe-num { color: var(--green); }
+
+        .pipe-label {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 6px;
+        }
+
+        .pipe-step.active .pipe-label { color: var(--cyan); }
+        .pipe-step.done .pipe-label { color: var(--green); }
+
+        .pipe-icon {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        /* RESULTS */
+        .results { display: none; }
+
+        /* VERDICT BANNER */
+        .verdict-banner {
+            position: relative;
+            padding: 28px 30px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 140px 1fr auto;
+            align-items: center;
+            gap: 30px;
+            overflow: hidden;
+        }
+
+        .verdict-banner::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
+            width: 300px;
+            background: radial-gradient(ellipse at right, var(--accent-color, rgba(0,212,255,0.1)), transparent 70%);
+            pointer-events: none;
+        }
+
+        .v-HIGH { --accent-color: rgba(255,45,85,0.15); border: 1px solid rgba(255,45,85,0.4); background: rgba(255,45,85,0.05); }
+        .v-HIGH::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--red), transparent); }
+
+        .v-MEDIUM { --accent-color: rgba(255,214,10,0.1); border: 1px solid rgba(255,214,10,0.3); background: rgba(255,214,10,0.03); }
+        .v-MEDIUM::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--yellow), transparent); }
+
+        .v-LOW { --accent-color: rgba(48,209,88,0.1); border: 1px solid rgba(48,209,88,0.3); background: rgba(48,209,88,0.03); }
+        .v-LOW::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--green), transparent); }
+
+        /* SCORE DISPLAY */
+        .score-display {
+            text-align: center;
+            position: relative;
+        }
+
+        .score-big {
+            font-family: 'Orbitron', monospace;
+            font-size: 56px;
+            font-weight: 900;
+            line-height: 1;
+            position: relative;
+        }
+
+        .score-big.c-HIGH { color: var(--red); text-shadow: 0 0 30px rgba(255,45,85,0.6); }
+        .score-big.c-MEDIUM { color: var(--yellow); text-shadow: 0 0 30px rgba(255,214,10,0.4); }
+        .score-big.c-LOW { color: var(--green); text-shadow: 0 0 30px rgba(48,209,88,0.4); }
+
+        .score-denom { font-size: 14px; color: var(--muted); margin-top: 2px; letter-spacing: 2px; }
+
+        /* VERDICT CENTER */
+        .verdict-info {}
+
+        .verdict-level-tag {
+            font-family: 'Orbitron', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            padding: 4px 12px;
+            border: 1px solid;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .v-HIGH .verdict-level-tag { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+        .v-MEDIUM .verdict-level-tag { border-color: var(--yellow); color: var(--yellow); background: var(--yellow-dim); }
+        .v-LOW .verdict-level-tag { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+
+        .verdict-summary-text {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-bright);
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .verdict-meta {
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+
+        /* ACTION BOX */
+        .action-box {
+            min-width: 220px;
+            padding: 16px;
+            border: 1px solid;
+            text-align: center;
+        }
+
+        .v-HIGH .action-box { border-color: rgba(255,45,85,0.3); }
+        .v-MEDIUM .action-box { border-color: rgba(255,214,10,0.3); }
+        .v-LOW .action-box { border-color: rgba(48,209,88,0.3); }
+
+        .action-label { font-size: 9px; color: var(--muted); letter-spacing: 3px; margin-bottom: 10px; }
+
+        .action-lines { display: flex; flex-direction: column; gap: 6px; }
+
+        .action-line {
+            font-family: 'Orbitron', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            padding: 5px 10px;
+        }
+
+        .v-HIGH .action-line { color: var(--red); border: 1px solid rgba(255,45,85,0.2); background: rgba(255,45,85,0.05); }
+        .v-MEDIUM .action-line { color: var(--yellow); border: 1px solid rgba(255,214,10,0.2); }
+        .v-LOW .action-line { color: var(--green); border: 1px solid rgba(48,209,88,0.2); }
+
+        /* DATA GRID */
+        .data-grid {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .dg-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .dg-2 { grid-template-columns: 1fr 1fr; }
+
+        /* DATA PANEL */
+        .dp {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dp::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent);
+        }
+
+        .dp-head {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 9px;
+            color: var(--cyan);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dp-head-icon { opacity: 0.7; }
+        .dp-body { padding: 16px; }
+
+        /* FIELD ROWS */
+        .field-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(0,212,255,0.05);
+            gap: 12px;
+        }
+
+        .field-row:last-child { border-bottom: none; }
+
+        .field-key {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            padding-top: 1px;
+        }
+
+        .field-val {
+            font-size: 11px;
+            color: var(--text);
+            text-align: right;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        /* THREAT FLAGS */
+        .threat-flag {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border: 1px solid;
+            margin-bottom: 8px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tf-on { border-color: rgba(255,45,85,0.4); color: var(--red); background: rgba(255,45,85,0.06); }
+        .tf-off { border-color: rgba(48,209,88,0.2); color: rgba(48,209,88,0.6); background: rgba(48,209,88,0.03); }
+
+        .tf-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .tf-on .tf-dot { background: var(--red); box-shadow: 0 0 8px var(--red); animation: blink 1s ease infinite; }
+        .tf-off .tf-dot { background: rgba(48,209,88,0.4); }
+
+        .tf-status {
+            margin-left: auto;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+        }
+
+        /* TACTIC TAGS */
+        .tactic-tag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 3px 8px;
+            border: 1px solid rgba(255,45,85,0.3);
+            color: var(--red);
+            background: rgba(255,45,85,0.08);
+            margin: 3px;
+            letter-spacing: 1px;
+        }
+
+        .tactic-none {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        /* CONFIDENCE BAR */
+        .conf-wrap { margin-top: 12px; }
+
+        .conf-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 6px;
+            color: var(--muted);
+        }
+
+        .conf-val { font-family: 'Orbitron', monospace; }
+
+        .conf-track {
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .conf-fill {
+            height: 100%;
+            transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+            position: relative;
+        }
+
+        .conf-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+        }
+
+        /* IOC ITEMS */
+        .ioc-entry {
+            padding: 8px 12px;
+            border: 1px solid;
+            margin-bottom: 6px;
+            font-size: 11px;
+            word-break: break-all;
+            line-height: 1.4;
+            position: relative;
+        }
+
+        .ioc-url { border-color: rgba(255,45,85,0.3); color: #ff6b81; background: rgba(255,45,85,0.05); }
+        .ioc-domain { border-color: rgba(255,214,10,0.3); color: var(--yellow); background: rgba(255,214,10,0.04); }
+        .ioc-ip { border-color: rgba(0,212,255,0.3); color: var(--cyan); background: var(--cyan-dim); }
+        .ioc-empty { font-size: 10px; color: var(--muted); font-style: italic; padding: 4px 0; }
+
+        .ioc-prefix { opacity: 0.6; margin-right: 6px; }
+
+        /* MITRE CARD */
+        .mitre-entry {
+            padding: 14px;
+            border: 1px solid rgba(0,212,255,0.15);
+            background: rgba(0,212,255,0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mitre-entry::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 2px;
+            background: var(--cyan);
+        }
+
+        .mitre-tactic {
+            font-size: 9px;
+            color: var(--cyan);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            opacity: 0.7;
+        }
+
+        .mitre-id {
+            font-family: 'Orbitron', monospace;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-bright);
+            margin-bottom: 4px;
+        }
+
+        .mitre-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .mitre-tag {
+            font-size: 9px;
+            padding: 2px 8px;
+            border: 1px solid rgba(0,212,255,0.2);
+            color: var(--cyan);
+            display: inline-block;
+            letter-spacing: 1px;
+        }
+
+        /* SCORE BREAKDOWN */
+        .score-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid rgba(0,212,255,0.05);
+            gap: 12px;
+        }
+
+        .score-line:last-child { border-bottom: none; }
+
+        .score-line-text {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .score-line-pts {
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            color: var(--green);
+            flex-shrink: 0;
+        }
+
+        .score-total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 14px;
+            margin-top: 4px;
+            border-top: 1px solid var(--border-bright);
+        }
+
+        .score-total-label {
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 3px;
+        }
+
+        .score-total-val {
+            font-family: 'Orbitron', monospace;
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        /* REPORT */
+        .report-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .report-scroll::-webkit-scrollbar { width: 2px; }
+        .report-scroll::-webkit-scrollbar-track { background: transparent; }
+        .report-scroll::-webkit-scrollbar-thumb { background: var(--muted); }
+
+        .report-body {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            line-height: 1.8;
+            color: var(--text);
+        }
+
+        .report-body h3 {
+            font-family: 'Orbitron', monospace;
+            font-size: 10px;
+            color: var(--cyan);
+            letter-spacing: 3px;
+            margin: 18px 0 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(0,212,255,0.1);
+        }
+
+        .report-body h3:first-child { margin-top: 0; }
+        .report-body p { margin-bottom: 10px; color: rgba(176,196,216,0.8); }
+        .report-body strong { color: var(--text-bright); font-weight: 600; }
+        .report-body ul { padding-left: 18px; margin-bottom: 10px; }
+        .report-body li { color: rgba(176,196,216,0.7); margin-bottom: 4px; }
+
+        .report-path {
+            font-size: 10px;
+            color: var(--muted);
+            margin-left: auto;
+            letter-spacing: 1px;
+        }
+
+        /* SECTION DIVIDER */
+        .sec-divider {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin: 6px 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sec-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* RESET */
+        .reset-bar {
+            display: flex;
+            justify-content: center;
+            padding: 20px 0 10px;
+        }
+
+        .reset-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 3px;
+            padding: 8px 24px;
+            border: 1px solid var(--border-bright);
+            background: transparent;
+            color: var(--cyan);
+            cursor: crosshair;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover { background: var(--cyan-dim); box-shadow: 0 0 15px var(--cyan-glow); }
+
+        /* HISTORY PANEL */
+        .hist-panel {
+            display: none;
+            position: fixed;
+            top: 64px; right: 0;
+            width: 360px;
+            height: calc(100vh - 64px);
+            background: rgba(6,12,20,0.97);
+            border-left: 1px solid var(--border-bright);
+            z-index: 200;
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+        }
+
+        .hist-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, var(--cyan), transparent);
+        }
+
+        .hist-head {
+            position: sticky;
+            top: 0;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(6,12,20,0.98);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hist-title {
+            font-size: 10px;
+            color: var(--cyan);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .hist-close {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            background: transparent;
+            border: 1px solid var(--border-bright);
+            color: var(--cyan);
+            padding: 3px 8px;
+            cursor: crosshair;
+        }
+
+        .hist-body { padding: 16px; }
+
+        .hist-item {
+            padding: 12px;
+            border: 1px solid;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .hist-item:hover { background: rgba(0,212,255,0.03); }
+        .hist-HIGH { border-color: rgba(255,45,85,0.3); }
+        .hist-MEDIUM { border-color: rgba(255,214,10,0.2); }
+        .hist-LOW { border-color: rgba(48,209,88,0.2); }
+
+        .hist-item-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .hist-risk {
+            font-family: 'Orbitron', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .hist-HIGH .hist-risk { color: var(--red); }
+        .hist-MEDIUM .hist-risk { color: var(--yellow); }
+        .hist-LOW .hist-risk { color: var(--green); }
+
+        .hist-time { font-size: 9px; color: var(--muted); }
+        .hist-file { font-size: 10px; color: var(--muted); }
+
+        @media (max-width: 1024px) {
+            .dg-3 { grid-template-columns: 1fr 1fr; }
+            .verdict-banner { grid-template-columns: 100px 1fr; }
+            .action-box { display: none; }
+            .pipeline-track { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 700px) {
+            .dg-3, .dg-2 { grid-template-columns: 1fr; }
+            .header-center { display: none; }
+            .main { padding: 20px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- BG FX -->
+<div class="bg-grid"></div>
+<div class="bg-scan"></div>
+<div class="corner corner-tl"></div>
+<div class="corner corner-tr"></div>
+<div class="corner corner-bl"></div>
+<div class="corner corner-br"></div>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="logo-wrap">
+        <div class="logo-icon">🛡</div>
+        <div>
+            <div class="logo-text">PHISHGUARD</div>
+            <div class="logo-sub">Threat Analysis System v2.0</div>
+        </div>
+    </div>
+
+    <div class="header-center">
+        <div class="header-stat">
+            <div class="header-stat-val" id="statAnalyzed">—</div>
+            <div class="header-stat-label">ANALYZED</div>
+        </div>
+        <div class="header-stat">
+            <div class="header-stat-val" id="statThreats">—</div>
+            <div class="header-stat-label">THREATS</div>
+        </div>
+        <div class="header-stat">
+            <div class="header-stat-val" id="statLastRisk">—</div>
+            <div class="header-stat-label">LAST RISK</div>
+        </div>
+    </div>
+
+    <div class="header-right">
+        <div class="online-badge">
+            <div class="online-dot"></div>
+            SYSTEMS ONLINE
+        </div>
+        <button class="hist-btn" onclick="toggleHistory()">▣ HISTORY</button>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+    <!-- TITLE -->
+    <div class="sys-title">
+        <div class="sys-title-pre">// SECURITY OPERATIONS CENTER — AUTOMATED TRIAGE</div>
+        <h1>PHISHING <span>THREAT ANALYZER</span></h1>
+        <div class="sys-title-flow">
+            <span class="flow-step">INGEST</span><span class="flow-arrow">→</span>
+            <span class="flow-step">AI PARSE</span><span class="flow-arrow">→</span>
+            <span class="flow-step">IOC EXTRACT</span><span class="flow-arrow">→</span>
+            <span class="flow-step">ENRICH</span><span class="flow-arrow">→</span>
+            <span class="flow-step">SCORE</span><span class="flow-arrow">→</span>
+            <span class="flow-step">REPORT</span><span class="flow-arrow">→</span>
+            <span class="flow-step">ALERT</span>
+        </div>
+    </div>
+
+    <!-- INPUT -->
+    <div class="input-section">
+        <div class="panel">
+            <div class="panel-head">
+                <div class="panel-label">INPUT — SUSPICIOUS EMAIL</div>
+                <div class="sample-btns">
+                    <button class="sample-btn s-red" onclick="loadSample('high')">⚠ HIGH RISK</button>
+                    <button class="sample-btn s-yellow" onclick="loadSample('medium')">◈ MEDIUM</button>
+                    <button class="sample-btn s-green" onclick="loadSample('low')">✓ CLEAN</button>
+                </div>
+            </div>
+            <textarea id="emailInput" placeholder="// PASTE RAW EMAIL CONTENT HERE INCLUDING HEADERS&#10;// From: sender@domain.com&#10;// Subject: Email subject&#10;// Date: ...&#10;//&#10;// Email body..."></textarea>
+            <div class="input-foot">
+                <span class="input-hint">// SUPPORTS RAW TEXT · EML FORMAT · HEADER + BODY</span>
+                <button class="analyze-btn" id="analyzeBtn" onclick="analyzeEmail()">INITIATE ANALYSIS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIPELINE / LOADING -->
+    <div class="loading-section" id="loadingSection">
+        <div class="panel">
+            <div class="panel-head">
+                <div class="panel-label">ANALYSIS PIPELINE — RUNNING</div>
+            </div>
+            <div class="pipeline-track">
+                <div class="pipe-step" id="ps1">
+                    <div class="pipe-icon">📧</div>
+                    <div class="pipe-num">01</div>
+                    <div class="pipe-label">Parse</div>
+                </div>
+                <div class="pipe-step" id="ps2">
+                    <div class="pipe-icon">🧠</div>
+                    <div class="pipe-num">02</div>
+                    <div class="pipe-label">AI Extract</div>
+                </div>
+                <div class="pipe-step" id="ps3">
+                    <div class="pipe-icon">🌐</div>
+                    <div class="pipe-num">03</div>
+                    <div class="pipe-label">Enrich</div>
+                </div>
+                <div class="pipe-step" id="ps4">
+                    <div class="pipe-icon">📊</div>
+                    <div class="pipe-num">04</div>
+                    <div class="pipe-label">Score</div>
+                </div>
+                <div class="pipe-step" id="ps5">
+                    <div class="pipe-icon">📄</div>
+                    <div class="pipe-num">05</div>
+                    <div class="pipe-label">Report</div>
+                </div>
+                <div class="pipe-step" id="ps6">
+                    <div class="pipe-icon">🚨</div>
+                    <div class="pipe-num">06</div>
+                    <div class="pipe-label">Alert</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results" id="results">
+
+        <!-- VERDICT -->
+        <div class="verdict-banner panel" id="verdictBanner">
+            <div class="score-display">
+                <div class="score-big" id="scoreBig">0</div>
+                <div class="score-denom">OUT OF 100</div>
+            </div>
+            <div class="verdict-info">
+                <div class="verdict-level-tag" id="verdictTag">—</div>
+                <div class="verdict-summary-text" id="verdictSummaryText">—</div>
+                <div class="verdict-meta" id="verdictMeta">—</div>
+            </div>
+            <div class="action-box" id="actionBox">
+                <div class="action-label">RECOMMENDED ACTIONS</div>
+                <div class="action-lines" id="actionLines"></div>
+            </div>
+        </div>
+
+        <!-- ROW 1 -->
+        <div class="sec-divider">SIGNAL ANALYSIS</div>
+        <div class="data-grid dg-3">
+
+            <!-- EMAIL DETAILS -->
+            <div class="dp">
+                <div class="dp-head"><span class="dp-head-icon">📧</span> EMAIL DETAILS</div>
+                <div class="dp-body">
+                    <div class="field-row">
+                        <span class="field-key">FROM</span>
+                        <span class="field-val" id="fFrom">—</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">REPLY-TO</span>
+                        <span class="field-val" id="fReplyTo">—</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">SUBJECT</span>
+                        <span class="field-val" id="fSubject">—</span>
+                    </div>
+                    <div class="field-row">
+                        <span class="field-key">DATE</span>
+                        <span class="field-val" id="fDate">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- THREAT FLAGS -->
+            <div class="dp">
+                <div class="dp-head"><span class="dp-head-icon">⚠</span> THREAT FLAGS</div>
+                <div class="dp-body">
+                    <div class="threat-flag" id="tfSpoof">
+                        <div class="tf-dot"></div>
+                        <span>Sender Spoofing</span>
+                        <span class="tf-status">—</span>
+                    </div>
+                    <div class="threat-flag" id="tfCred">
+                        <div class="tf-dot"></div>
+                        <span>Credential Harvesting</span>
+                        <span class="tf-status">—</span>
+                    </div>
+                    <div class="threat-flag" id="tfUrg">
+                        <div class="tf-dot"></div>
+                        <span>Urgency Tactic</span>
+                        <span class="tf-status">—</span>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">TACTICS DETECTED</div>
+                        <div id="tacticTags"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI ANALYSIS -->
+            <div class="dp">
+                <div class="dp-head"><span class="dp-head-icon">🧠</span> AI ANALYSIS</div>
+                <div class="dp-body">
+                    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">PHISHING CONFIDENCE</div>
+                    <div class="conf-wrap">
+                        <div class="conf-row">
+                            <span>AI SCORE</span>
+                            <span class="conf-val" id="confVal">0%</span>
+                        </div>
+                        <div class="conf-track">
+                            <div class="conf-fill" id="confFill" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">ANALYST SUMMARY</div>
+                    <div style="font-family:'Rajdhani',sans-serif;font-size:14px;color:var(--text);line-height:1.5;" id="aiSum">—</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- MITRE -->
+        <div class="dp" id="mitreSection" style="display:none;margin-bottom:16px;">
+            <div class="dp-head"><span class="dp-head-icon">🎯</span> MITRE ATT&CK FRAMEWORK MAPPING</div>
+            <div class="dp-body">
+                <div id="mitreGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;"></div>
+            </div>
+        </div>
+
+        <!-- ROW 2 -->
+        <div class="sec-divider">INDICATORS OF COMPROMISE</div>
+        <div class="data-grid dg-2">
+
+            <!-- IOCs -->
+            <div class="dp">
+                <div class="dp-head"><span class="dp-head-icon">🔍</span> EXTRACTED IOCs</div>
+                <div class="dp-body">
+                    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">MALICIOUS URLs</div>
+                    <div id="iocUrls" style="margin-bottom:14px;"></div>
+                    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">SUSPICIOUS DOMAINS</div>
+                    <div id="iocDomains" style="margin-bottom:14px;"></div>
+                    <div style="font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">IP ADDRESSES</div>
+                    <div id="iocIps"></div>
+                </div>
+            </div>
+
+            <!-- SCORE BREAKDOWN -->
+            <div class="dp">
+                <div class="dp-head"><span class="dp-head-icon">📊</span> RISK SCORE BREAKDOWN</div>
+                <div class="dp-body">
+                    <div id="scoreBreak"></div>
+                    <div class="score-total-row">
+                        <span class="score-total-label">TOTAL RISK SCORE</span>
+                        <span class="score-total-val" id="scoreTotalVal">—</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- REPORT -->
+        <div class="sec-divider">INCIDENT REPORT</div>
+        <div class="dp" style="margin-bottom:8px;">
+            <div class="dp-head">
+                <span class="dp-head-icon">📄</span> ANALYST INCIDENT REPORT
+                <span class="report-path" id="rPath"></span>
+            </div>
+            <div class="dp-body">
+                <div class="report-scroll">
+                    <div class="report-body" id="reportBody"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="reset-bar">
+            <button class="reset-btn" onclick="resetAll()">▶ CLEAR — ANALYZE NEW EMAIL</button>
+        </div>
+
+    </div>
+
+</main>
+
+<!-- HISTORY PANEL -->
+<div class="hist-panel" id="histPanel">
+    <div class="hist-head">
+        <div class="hist-title">▣ INCIDENT HISTORY</div>
+        <button class="hist-close" onclick="toggleHistory()">✕ CLOSE</button>
+    </div>
+    <div class="hist-body" id="histBody">
+        <div style="font-size:11px;color:var(--muted);">Loading...</div>
+    </div>
+</div>
+
+<script>
+// ─── SAMPLE EMAILS ───────────────────────────────────────
+const SAMPLES = {
+    high: `From: "Microsoft Security" <security@micros0ft-alert.ru>\nReply-To: harvest@evil-domain.com\nSubject: [URGENT] Your account will be suspended in 24 hours\nDate: Mon, 01 Jan 2024 10:00:00 +0000\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReceived: from 185.220.101.45 (micros0ft-alert.ru)\nX-Originating-IP: 185.220.101.45\n\nDear User,\n\nYour Microsoft account has been flagged for suspicious activity.\nYou must verify your credentials immediately or your account will be suspended.\n\nClick here to verify: http://micros0ft-verify.ru/login?user=victim\n\nYour account IP has been logged: 185.220.101.45\nIf you do not verify within 24 hours, your account will be permanently deleted.\n\nMicrosoft Security Team`,
+
+    medium: `From: "PayPal Support" <support@paypal-secure-login.com>\nReply-To: support@paypal-secure-login.com\nSubject: Your account needs attention\nDate: Mon, 01 Jan 2024 10:00:00 +0000\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReceived: from 91.108.56.130 (paypal-secure-login.com)\n\nDear Customer,\n\nWe noticed some unusual activity on your PayPal account.\nPlease review your recent transactions and confirm your identity.\n\nVisit your account here: https://paypal-secure-login.com/verify\n\nIf this was not you, please contact our support team.\n\nPayPal Support Team`,
+
+    low: `From: "Google Team" <no-reply@google.com>\nReply-To: no-reply@google.com\nSubject: Your weekly activity summary\nDate: Mon, 01 Jan 2024 10:00:00 +0000\nMIME-Version: 1.0\nContent-Type: text/plain; charset="utf-8"\nContent-Transfer-Encoding: 7bit\nReceived: from 142.250.80.46 (google.com)\n\nHi John,\n\nHere is your weekly activity summary for your Google account.\nYou had 5 sign-ins this week from your usual devices.\nStorage used: 4.2 GB of 15 GB.\n\nView your full account activity at https://myaccount.google.com/activity\n\nThanks,\nThe Google Team`
+};
+
+// ─── SESSION STATS ────────────────────────────────────────
+let sessionStats = { analyzed: 0, threats: 0, lastRisk: '—' };
+
+function updateStats(level) {
+    sessionStats.analyzed++;
+    if (level !== 'LOW') sessionStats.threats++;
+    sessionStats.lastRisk = level;
+    document.getElementById('statAnalyzed').textContent = sessionStats.analyzed;
+    document.getElementById('statThreats').textContent = sessionStats.threats;
+    document.getElementById('statLastRisk').textContent = level;
+    const el = document.getElementById('statLastRisk');
+    el.style.color = level === 'HIGH' ? 'var(--red)' : level === 'MEDIUM' ? 'var(--yellow)' : 'var(--green)';
+}
+
+// ─── SAMPLE LOADER ────────────────────────────────────────
+function loadSample(type) {
+    const ta = document.getElementById('emailInput');
+    ta.value = SAMPLES[type];
+    ta.style.borderTop = '1px solid rgba(0,212,255,0.3)';
+}
+
+// ─── PIPELINE ANIMATION ───────────────────────────────────
+let pipeTimer = null;
+
+function startPipeline() {
+    const steps = ['ps1','ps2','ps3','ps4','ps5','ps6'];
+    steps.forEach(s => { document.getElementById(s).className = 'pipe-step'; });
+    let i = 0;
+    pipeTimer = setInterval(() => {
+        if (i > 0) document.getElementById(steps[i-1]).className = 'pipe-step done';
+        if (i < steps.length) {
+            document.getElementById(steps[i]).className = 'pipe-step active';
+            i++;
+        }
+    }, 1800);
+}
+
+function completePipeline() {
+    clearInterval(pipeTimer);
+    ['ps1','ps2','ps3','ps4','ps5','ps6'].forEach(s => {
+        document.getElementById(s).className = 'pipe-step done';
+    });
+}
+
+// ─── ANALYZE ──────────────────────────────────────────────
+async function analyzeEmail() {
+    const content = document.getElementById('emailInput').value.trim();
+    if (!content) { alert('Please paste an email to analyze.'); return; }
+
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('loadingSection').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    startPipeline();
+
+    try {
+        const fd = new FormData();
+        fd.append('email_content', content);
+        const res = await fetch('/analyze', { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (data.error) { alert('Error: ' + data.error); return; }
+
+        completePipeline();
+        await new Promise(r => setTimeout(r, 600));
+        document.getElementById('loadingSection').style.display = 'none';
+        renderResults(data);
+
+    } catch(e) {
+        alert('Connection error: ' + e.message);
+    } finally {
+        document.getElementById('analyzeBtn').disabled = false;
+    }
+}
+
+// ─── RENDER RESULTS ───────────────────────────────────────
+function renderResults(data) {
+    const { email, iocs, risk, report, saved_path, duration } = data;
+    const lvl = risk.level;
+    const colors = { HIGH: 'var(--red)', MEDIUM: 'var(--yellow)', LOW: 'var(--green)' };
+    const clr = colors[lvl];
+
+    // VERDICT BANNER
+    const banner = document.getElementById('verdictBanner');
+    banner.className = `verdict-banner panel v-${lvl}`;
+
+    const scoreBig = document.getElementById('scoreBig');
+    scoreBig.className = `score-big c-${lvl}`;
+    animateNumber(scoreBig, 0, risk.score, 1200);
+
+    document.getElementById('verdictTag').textContent = lvl + ' RISK';
+    document.getElementById('verdictSummaryText').textContent = iocs.summary || '—';
+    document.getElementById('verdictMeta').textContent =
+        `Analysis completed in ${duration || '?'}s  ·  Score: ${risk.score}/100  ·  ${new Date().toLocaleTimeString()}`;
+
+    // ACTION BOX
+    const actionBox = document.getElementById('actionBox');
+    const actions = risk.action.split('|').map(a => a.trim());
+    document.getElementById('actionLines').innerHTML = actions
+        .map(a => `<div class="action-line">${a}</div>`).join('');
+
+    // EMAIL FIELDS
+    document.getElementById('fFrom').textContent = email.sender;
+    document.getElementById('fReplyTo').textContent = email.reply_to;
+    document.getElementById('fSubject').textContent = email.subject;
+    document.getElementById('fDate').textContent = email.date;
+
+    // THREAT FLAGS
+    setFlag('tfSpoof', iocs.spoofing_detected, 'Sender Spoofing');
+    setFlag('tfCred', iocs.credential_harvesting, 'Credential Harvesting');
+    setFlag('tfUrg', iocs.urgency_detected, 'Urgency Tactic');
+
+    // TACTICS
+    const tactics = iocs.phishing_tactics || [];
+    document.getElementById('tacticTags').innerHTML = tactics.length
+        ? tactics.map(t => `<span class="tactic-tag">${t}</span>`).join('')
+        : '<span class="tactic-none">None detected</span>';
+
+    // AI CONFIDENCE
+    const conf = iocs.ai_confidence_score || 0;
+    document.getElementById('confVal').textContent = conf + '%';
+    document.getElementById('confVal').style.color = clr;
+    const fill = document.getElementById('confFill');
+    fill.style.background = clr;
+    fill.style.boxShadow = `0 0 10px ${clr}`;
+    setTimeout(() => { fill.style.width = conf + '%'; }, 100);
+    document.getElementById('aiSum').textContent = iocs.summary || '—';
+
+    // MITRE
+    const mitre = iocs.mitre_techniques || [];
+    const mitreSection = document.getElementById('mitreSection');
+    if (mitre.length > 0) {
+        mitreSection.style.display = 'block';
+        document.getElementById('mitreGrid').innerHTML = mitre.map(m => `
+            <div class="mitre-entry">
+                <div class="mitre-tactic">${m.tactic}</div>
+                <div class="mitre-id">${m.technique_id}</div>
+                <div class="mitre-name">${m.technique_name}</div>
+                <span class="mitre-tag">${m.detected_as}</span>
+            </div>
+        `).join('');
+    } else {
+        mitreSection.style.display = 'none';
+    }
+
+    // IOCs
+    renderIocs('iocUrls', iocs.urls, 'ioc-url', '⬡');
+    renderIocs('iocDomains', iocs.domains, 'ioc-domain', '◈');
+    renderIocs('iocIps', iocs.ips, 'ioc-ip', '⬢');
+
+    // SCORE BREAKDOWN
+    const breakdown = risk.breakdown || [];
+    document.getElementById('scoreBreak').innerHTML = breakdown.map(line => {
+        const pts = line.match(/\(([^)]+)\)/);
+        const text = line.replace(/\([^)]+\)/, '').trim();
+        return `<div class="score-line">
+            <span class="score-line-text">${text}</span>
+            <span class="score-line-pts">${pts ? pts[1] : ''}</span>
+        </div>`;
+    }).join('');
+
+    const totalEl = document.getElementById('scoreTotalVal');
+    totalEl.textContent = risk.score + ' / 100';
+    totalEl.style.color = clr;
+
+    // REPORT
+    document.getElementById('rPath').textContent = saved_path || '';
+    document.getElementById('reportBody').innerHTML = formatReport(report);
+
+    // SHOW
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+
+    updateStats(lvl);
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+function setFlag(id, detected, label) {
+    const el = document.getElementById(id);
+    el.className = 'threat-flag ' + (detected ? 'tf-on' : 'tf-off');
+    el.innerHTML = `
+        <div class="tf-dot"></div>
+        <span>${label}</span>
+        <span class="tf-status">${detected ? '⚡ DETECTED' : '✓ CLEAR'}</span>
+    `;
+}
+
+function renderIocs(id, items, cls, icon) {
+    const el = document.getElementById(id);
+    el.innerHTML = (items && items.length)
+        ? items.map(i => `<div class="ioc-entry ${cls}"><span class="ioc-prefix">${icon}</span>${i}</div>`).join('')
+        : `<div class="ioc-empty">// none extracted</div>`;
+}
+
+function animateNumber(el, from, to, duration) {
+    const start = performance.now();
+    function update(time) {
+        const progress = Math.min((time - start) / duration, 1);
+        el.textContent = Math.round(from + (to - from) * easeOut(progress));
+        if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+}
+
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+function formatReport(text) {
+    if (!text) return '';
+    return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^#+\s+(.+)$/gm, '<h3>$1</h3>')
+        .replace(/^\*\s+(.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+        .split('\n\n')
+        .map(p => p.startsWith('<') ? p : `<p>${p}</p>`)
+        .join('');
+}
+
+function resetAll() {
+    document.getElementById('emailInput').value = '';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('loadingSection').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─── HISTORY ──────────────────────────────────────────────
+async function toggleHistory() {
+    const panel = document.getElementById('histPanel');
+    if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
+        await loadHistory();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+async function loadHistory() {
+    const body = document.getElementById('histBody');
+    try {
+        const res = await fetch('/history');
+        const data = await res.json();
+        const reports = data.reports || [];
+
+        if (!reports.length) {
+            body.innerHTML = '<div style="font-size:11px;color:var(--muted);">// No incidents on record.</div>';
+            return;
+        }
+
+        body.innerHTML = reports.masp(r => `
+            <div class="hist-item hist-${r.risk_level}">
+                <div class="hist-item-head">
+                    <span class="hist-risk">${r.risk_level}</span>
+                    <span class="hist-time">${r.timestamp}</span>
+                </div>
+                <div class="hist-file">${r.filename}</div>
+            </div>
+        `).join('');
+    } catch(e) {
+        body.innerHTML = '<div style="font-size:11px;color:var(--red);">// Failed to load history.</div>';
+    }
+}
+</script>
+</body>
+</html>
