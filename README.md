@@ -6,8 +6,6 @@ Automated phishing email analysis pipeline with a SOC-style web dashboard.
 
 ![Architecture](screenshot/architecture.png)
 
-## Architecture
-
 ![Architecture](screenshot/architecture.png)
 
 ## Overview
