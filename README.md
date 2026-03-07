@@ -2,9 +2,11 @@
 
 Automated phishing email analysis pipeline with a SOC-style web dashboard.
 
+### Dashboard Preview
+
 ![Dashboard](screenshot/dashbaord_preview.png)
 
-![Architecture](screenshot/architecture.png)
+### Architecture Diagram
 
 ![Architecture](screenshot/architecture.png)
 
