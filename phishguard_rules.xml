@@ -1,0 +1,21 @@
+<group name="phishguard,">
+
+  <rule id="100001" level="10">
+    <decoded_as>json</decoded_as>
+    <field name="phishguard.risk_level">HIGH</field>
+    <description>PhishGuard: HIGH risk phishing email detected</description>
+    <mitre>
+      <id>T1566.002</id>
+    </mitre>
+  </rule>
+
+  <rule id="100002" level="6">
+    <decoded_as>json</decoded_as>
+    <field name="phishguard.risk_level">MEDIUM</field>
+    <description>PhishGuard: MEDIUM risk phishing email detected</description>
+    <mitre>
+      <id>T1566</id>
+    </mitre>
+  </rule>
+
+</group>
