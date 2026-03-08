@@ -28,8 +28,10 @@ def generate_report(email_data, iocs, enrichment, risk_result):
     for i in enrichment.get("ip_results", []):
         ip_summary += f"IP: {i.get('ip')} | Abuse Score: {i.get('abuse_confidence_score')}% | ISP: {i.get('isp')} | Tor: {i.get('is_tor')}\n"
 
+    today = datetime.now().strftime("%Y-%m-%d")
     prompt = f"""
 You are a senior SOC analyst. Write a professional incident report based on this data.
+Today's date is {today}. Use this exact date in the report — never use 2023 or any other year.
 
 EMAIL DETAILS:
 - From: {email_data['sender']}
